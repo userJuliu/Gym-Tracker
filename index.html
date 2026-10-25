@@ -45,7 +45,7 @@
     .history-item:last-child { border-bottom: none; }
     .chart-box { margin-top: 1rem; height: 180px; position: relative; }
 
-    .sync-status { margin-top: 1.5rem; text-align: center; background: #1e293b; border: 1px solid #334155; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.5rem; color: #cbd5e1; }
+    .sync-status { margin-top: 1.5rem; text-align: center; background: #1e293b; border: 1px solid #334155; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.5rem; color: #cbd5e1; cursor: pointer; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; }
     .dot.connected { background: #34d399; }
 
@@ -66,14 +66,15 @@
     <div id="exerciseContent"></div>
     
     <div style="text-align: center;">
-      <div class="sync-status">
+      <div class="sync-status" onclick="loadFromCloud()" title="Klicken zum manuellen Aktualisieren">
         <div id="syncDot" class="dot"></div>
-        <span id="syncText">Verbinde Cloud...</span>
+        <span id="syncText">Verbinde Cloud... (Klicken zum Aktualisieren)</span>
       </div>
     </div>
   </div>
 
   <script>
+    // DEINE ZUGANGSDATEN HIER EINTRAGEN
     const JSONBIN_API_KEY = "$2a$10$/12s8Z7UYyCY3FEk6rWj.efvZML4es8PBx0u.nxDFWBIY7x4uB5j0"; 
     const JSONBIN_BIN_ID = "6adde7bbac6210605a509178";
 
@@ -87,9 +88,12 @@
     }
 
     async function loadFromCloud() {
+      document.getElementById('syncText').innerText = 'Lade Cloud-Daten...';
       try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-          headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        // Einzigartiger Zeitstempel (?t=...) zwingt den Browser, die Daten frisch zu holen statt aus dem Cache
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest?t=${new Date().getTime()}`, {
+          headers: { 'X-Master-Key': JSONBIN_API_KEY },
+          cache: 'no-store'
         });
         if (!res.ok) throw new Error("Netzwerkfehler");
         const data = await res.json();
@@ -100,7 +104,7 @@
         renderExercises();
       } catch (e) {
         console.error(e);
-        document.getElementById('syncText').innerText = 'Fehler beim Laden';
+        document.getElementById('syncText').innerText = 'Fehler beim Laden (Klicken zum Wiederholen)';
         cloudData = JSON.parse(localStorage.getItem('gym_tracker_logs')) || {};
         renderExercises();
       }
@@ -258,7 +262,6 @@
         return;
       }
 
-      // Formatiere das Datum von YYYY-MM-DD zu TT.MM.
       let formattedDate = rawDate;
       if (rawDate) {
         const parts = rawDate.split('-');
@@ -317,6 +320,7 @@
       });
     }
 
+    // Automatischer Start beim Laden der Seite
     renderTabs();
     loadFromCloud();
   </script>
