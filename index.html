@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gym Cloud Tracker</title>
+  <title>Gym Cloud Tracker (Firebase)</title>
   
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -59,24 +59,36 @@
   <div class="container">
     <header>
       <h1><i data-lucide="cloud"></i> Gym Cloud Tracker</h1>
-      <p>Geräteübergreifender Sync</p>
+      <p>Mit Firebase Live-Sync</p>
     </header>
 
     <div class="tabs-nav" id="tabsNav"></div>
     <div id="exerciseContent"></div>
     
     <div style="text-align: center;">
-      <div class="sync-status" onclick="loadFromCloud()" title="Klicken zum manuellen Aktualisieren">
+      <div class="sync-status" onclick="window.loadFromCloud()" title="Klicken zum Aktualisieren">
         <div id="syncDot" class="dot"></div>
-        <span id="syncText">Verbinde Cloud... (Klicken zum Aktualisieren)</span>
+        <span id="syncText">Verbinde mit Firebase...</span>
       </div>
     </div>
   </div>
 
-  <script>
-    // DEINE ZUGANGSDATEN HIER EINTRAGEN
-    const JSONBIN_API_KEY = "$2a$10$/12s8Z7UYyCY3FEk6rWj.efvZML4es8PBx0u.nxDFWBIY7x4uB5j0"; 
-    const JSONBIN_BIN_ID = "6addf825ac6210605a50b108";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Firebase Konfiguration aus deinem Projekt[span_1](start_span)[span_1](end_span)
+    const firebaseConfig = {
+      apiKey: "AIzaSyASX8Kls6fwdViVduuJ1taLibJjKXFaSa8", //[span_2](start_span)[span_2](end_span)
+      authDomain: "gymtracker-95570.firebaseapp.com", //[span_3](start_span)[span_3](end_span)
+      projectId: "gymtracker-95570", //[span_4](start_span)[span_4](end_span)
+      storageBucket: "gymtracker-95570.firebasestorage.app", //[span_5](start_span)[span_5](end_span)
+      messagingSenderId: "421909782936", //[span_6](start_span)[span_6](end_span)
+      appId: "1:421909782936:web:13944f63608eec038fcbed" //[span_7](start_span)[span_7](end_span)
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     let cloudData = {};
     let currentDayIndex = 0;
@@ -88,27 +100,23 @@
     }
 
     async function loadFromCloud() {
-      document.getElementById('syncText').innerText = 'Lade Cloud-Daten...';
+      document.getElementById('syncText').innerText = 'Lade Daten von Firebase...';
       try {
-        // Nutzung der offiziellen Lese-Methode über JSONbin API
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-          method: 'GET',
-          headers: { 
-            'X-Master-Key': JSONBIN_API_KEY,
-            'Content-Type': 'application/json'
-          }
-        });
-        if (!res.ok) throw new Error("Netzwerkfehler");
-        const data = await res.json();
-        cloudData = data.record.exercises || {};
+        const docRef = doc(db, "gymData", "userRecord");
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          cloudData = docSnap.data().exercises || {};
+        } else {
+          cloudData = {};
+        }
         
         document.getElementById('syncDot').classList.add('connected');
-        document.getElementById('syncText').innerText = 'Cloud Verbunden & Synchronisiert';
+        document.getElementById('syncText').innerText = 'Firebase Verbunden & Synchronisiert';
         renderExercises();
       } catch (e) {
         console.error(e);
-        // Fallback falls Netzwerk blockiert: Lokale Daten nutzen, damit die App nutzbar bleibt
-        document.getElementById('syncText').innerText = 'Offline-Modus (Klicken zum Verbinden)';
+        document.getElementById('syncText').innerText = 'Offline-Modus (Lokaler Speicher)';
         cloudData = JSON.parse(localStorage.getItem('gym_tracker_logs')) || {};
         renderExercises();
       }
@@ -117,24 +125,15 @@
     async function saveToCloud() {
       localStorage.setItem('gym_tracker_logs', JSON.stringify(cloudData));
       document.getElementById('syncDot').classList.remove('connected');
-      document.getElementById('syncText').innerText = 'Speichere...';
+      document.getElementById('syncText').innerText = 'Speichere in Cloud...';
 
       try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Master-Key': JSONBIN_API_KEY
-          },
-          body: JSON.stringify({ exercises: cloudData })
-        });
-        if (!res.ok) throw new Error("Speicherfehler");
-
+        await setDoc(doc(db, "gymData", "userRecord"), { exercises: cloudData });
         document.getElementById('syncDot').classList.add('connected');
         document.getElementById('syncText').innerText = 'Gespeichert & Synchronisiert';
       } catch (e) {
         console.error(e);
-        document.getElementById('syncText').innerText = 'Speicherfehler';
+        document.getElementById('syncText').innerText = 'Speicherfehler (Lokal gesichert)';
       }
     }
 
@@ -146,7 +145,7 @@
       },
       {
         id: "day2",
-        title: "Di: Bauch & Arm",
+        title: "Di: Bauch & Arm-Spezial",
         exercises: ["Unterarmstütz / Bauchmaschine", "Rumpfbeugen seitlich Kabelzug", "Bizepscurls einarmig Kabelzug", "Trizepsstrecken liegend Kurzhantel", "Unterarm Maschine", "Butterfly Maschine"]
       },
       {
@@ -169,7 +168,7 @@
     function renderTabs() {
       const nav = document.getElementById('tabsNav');
       nav.innerHTML = workoutPlan.map((day, idx) => `
-        <button class="tab-btn ${idx === currentDayIndex ? 'active' : ''}" onclick="switchTab(${idx})">${day.title}</button>
+        <button class="tab-btn ${idx === currentDayIndex ? 'active' : ''}" onclick="window.switchTab(${idx})">${day.title}</button>
       `).join('');
     }
 
@@ -230,7 +229,7 @@
               </div>
             </div>
 
-            <button class="btn-save" onclick="saveSet('${exName}', ${exIdx})">
+            <button class="btn-save" onclick="window.saveSet('${exName}', ${exIdx})">
               <i data-lucide="cloud-upload"></i> Satz Speichern
             </button>
 
@@ -324,6 +323,12 @@
       });
     }
 
+    // Global verfügbar machen für HTML onclick
+    window.switchTab = switchTab;
+    window.saveSet = saveSet;
+    window.loadFromCloud = loadFromCloud;
+
+    // Initialisierung beim Start
     renderTabs();
     loadFromCloud();
   </script>
