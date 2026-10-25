@@ -1,0 +1,266 @@
+<div class="container">
+    <header>
+        <h1>
+            Gym Cloud Tracker
+        </h1>
+
+        <p>
+            Geräteübergreifender Sync
+        </p>
+    </header>
+
+    <div class="tabs-nav" id="tabsNav">
+    </div>
+
+    <div id="exerciseContent">
+    </div>
+</div>
+
+<div class="sync-status">
+    <div id="syncDot" class="dot">
+    </div>
+    <span id="syncText">Lade Cloud-Daten...</span>
+</div>
+<script>
+/* <![CDATA[ */
+    // ⚠️ DEINE ANGABEN HIER EINTRAGEN ⚠️
+    const JSONBIN_API_KEY = "$2a$10$/l2s8Z7UYYcY3FEk6rWj.efbZML4es8PBx0u.nxDFWBIY7x4uB5jO"; 
+    const JSONBIN_BIN_ID = "6adde7bbac6210605a509178";
+
+    let cloudData = {};
+    let currentDayIndex = 0;
+    let charts = {};
+
+    async function loadFromCloud() {
+      if (!JSONBIN_API_KEY || JSONBIN_API_KEY.includes("HIER") || !JSONBIN_BIN_ID || JSONBIN_BIN_ID.includes("HIER")) {
+        cloudData = JSON.parse(localStorage.getItem('gym_tracker_logs')) || {};
+        document.getElementById('syncText').innerText = 'Lokal (Angaben fehlen)';
+        renderExercises();
+        return;
+      }
+
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+          headers: { 'X-Master-Key': JSONBIN_API_KEY }
+        });
+        
+        if (!res.ok) throw new Error("Netzwerkfehler");
+
+        const data = await res.json();
+        cloudData = data.record.exercises || {};
+        
+        document.getElementById('syncDot').classList.add('connected');
+        document.getElementById('syncText').innerText = 'Cloud Verbunden';
+        renderExercises();
+      } catch (e) {
+        console.error(e);
+        document.getElementById('syncText').innerText = 'Fehler beim Laden';
+        cloudData = JSON.parse(localStorage.getItem('gym_tracker_logs')) || {};
+        renderExercises();
+      }
+    }
+
+    async function saveToCloud() {
+      localStorage.setItem('gym_tracker_logs', JSON.stringify(cloudData));
+
+      if (!JSONBIN_API_KEY || JSONBIN_API_KEY.includes("HIER") || !JSONBIN_BIN_ID || JSONBIN_BIN_ID.includes("HIER")) return;
+
+      document.getElementById('syncDot').classList.remove('connected');
+      document.getElementById('syncText').innerText = 'Speichere...';
+
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': JSONBIN_API_KEY
+          },
+          body: JSON.stringify({ exercises: cloudData })
+        });
+
+        if (!res.ok) throw new Error("Speicherfehler");
+
+        document.getElementById('syncDot').classList.add('connected');
+        document.getElementById('syncText').innerText = 'Gespeichert & Synchronisiert';
+      } catch (e) {
+        console.error(e);
+        document.getElementById('syncText').innerText = 'Speicherfehler';
+      }
+    }
+
+    const workoutPlan = [
+      {
+        id: "day1",
+        title: "Mo: Push A (Brust & Trizeps)",
+        exercises: ["Bankdrücken Langhantel", "Bankdrücken schräg Kurzhantel", "Dips / Dipsmaschine", "Arnold Press sitzend", "Trizepsstrecken überkopf Kabelzug", "Spider Curls Schrägbank"]
+      },
+      {
+        id: "day2",
+        title: "Di: Bauch & Arm-Spezial",
+        exercises: ["Unterarmstütz / Bauchmaschine", "Rumpfbeugen seitlich Kabelzug", "Bizepscurls einarmig Kabelzug", "Trizepsstrecken liegend Kurzhantel", "Unterarm Maschine", "Butterfly Maschine"]
+      },
+      {
+        id: "day3",
+        title: "Do: Pull & Schultern",
+        exercises: ["Ruderzug Maschine", "Klimmzüge Untergriff / Latzug", "Seitheben Maschine / Kurzhantel", "Facepulls", "Bizepscurls Hammergriff sitzend", "Trizepsstrecken einarmig Kabelzug"]
+      },
+      {
+        id: "day4",
+        title: "Fr: Oberkörper Hypertrophie",
+        exercises: ["Bankdrücken schräg Multipresse", "Rudern Schrägbank Kurzhantel", "Brustpresse Maschine", "Seitheben Schrägbank Kurzhantel", "Trizepsstrecken Kabelzug Stange", "Konzentrationscurl einarmig"]
+      },
+      {
+        id: "day5",
+        title: "Sa: Beine & Bauch",
+        exercises: ["Beinpresse 45 Grad / Kniebeuge", "Beinstrecker Maschine", "Beinbeuger sitzend Maschine", "Wadenheben stehend Multipresse", "Crunch Kabelzug", "Klappmesser / Reverse Crunches", "Russian Twists Kurzhantel"]
+      }
+    ];
+
+    function renderTabs() {
+      const nav = document.getElementById('tabsNav');
+      nav.innerHTML = workoutPlan.map((day, idx) => `
+        <button class="tab-btn ${idx === currentDayIndex ? 'active' : ''}" onclick="switchTab(${idx})">${day.title}<\/button>
+      `).join('');
+    }
+
+    function switchTab(index) {
+      currentDayIndex = index;
+      renderTabs();
+      renderExercises();
+    }
+
+    function renderExercises() {
+      const container = document.getElementById('exerciseContent');
+      const day = workoutPlan[currentDayIndex];
+
+      container.innerHTML = day.exercises.map((exName, exIdx) => {
+        const history = cloudData[exName] || [];
+        const lastEntry = history[history.length - 1];
+        const prevEntry = history[history.length - 2];
+
+        let trendHtml = '<span class="trend-same">➖ Erstes Training<\/span>';
+        if (lastEntry && prevEntry) {
+          if (lastEntry.weight > prevEntry.weight) {
+            trendHtml = `<span class="trend-up">📈 +${(lastEntry.weight - prevEntry.weight).toFixed(1)}kg<\/span>`;
+          } else if (lastEntry.weight < prevEntry.weight) {
+            trendHtml = `<span class="trend-down">📉 -${(prevEntry.weight - lastEntry.weight).toFixed(1)}kg<\/span>`;
+          } else {
+            trendHtml = `<span class="trend-same">🟡 Gleich<\/span>`;
+          }
+        }
+
+        return `
+          <div class="exercise-card">
+            <div class="exercise-header">
+              <span class="exercise-title">${exName}<\/span>
+              <div class="exercise-stats-badge">${trendHtml}<\/div>
+            <\/div>
+
+            <div class="set-input-row">
+              <div class="input-group">
+                <label>Gewicht (kg)<\/label>
+                <input type="number" step="0.5" id="weight_${exIdx}" placeholder="z.B. 60" value="${lastEntry ? lastEntry.weight : ''}">
+              <\/div>
+              <div class="input-group">
+                <label>Wdh.<\/label>
+                <input type="number" id="reps_${exIdx}" placeholder="z.B. 10" value="${lastEntry ? lastEntry.reps : ''}">
+              <\/div>
+              <div class="input-group">
+                <label>Anstrengung<\/label>
+                <select id="rpe_${exIdx}">
+                  <option value="Leicht">🟢 Leicht<\/option>
+                  <option value="Optimal" selected>🟡 Optimal (RPE 8-9)<\/option>
+                  <option value="Maximal">🔴 Versagen (RPE 10)<\/option>
+                <\/select>
+              <\/div>
+            <\/div>
+
+            <button class="btn-save" onclick="saveSet('${exName}', ${exIdx})">
+              <i data-lucide="cloud-upload"><\/i> Satz Speichern
+            <\/button>
+
+            ${history.length > 0 ? `
+              <div class="history-list">
+                <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; margin-bottom:0.3rem;">VERLAUF:<\/div>
+                ${history.slice(-3).reverse().map(h => `
+                  <div class="history-item">
+                    <span>${h.date}<\/span>
+                    <span><strong>${h.weight} kg<\/strong> × ${h.reps} Wdh.<\/span>
+                    <span style="color:var(--text-muted);">${h.rpe}<\/span>
+                  <\/div>
+                `).join('')}
+              <\/div>
+              <div class="chart-box"><canvas id="chart_${exIdx}"><\/canvas><\/div>
+            ` : ''}
+          <\/div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+      initCharts();
+    }
+
+    function saveSet(exName, exIdx) {
+      const weight = parseFloat(document.getElementById(`weight_${exIdx}`).value);
+      const reps = parseInt(document.getElementById(`reps_${exIdx}`).value);
+      const rpe = document.getElementById(`rpe_${exIdx}`).value;
+
+      if (!weight || !reps) {
+        alert("Bitte Gewicht und Wiederholungen eintragen!");
+        return;
+      }
+
+      const newRecord = {
+        date: new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+        weight: weight,
+        reps: reps,
+        rpe: rpe
+      };
+
+      if (!cloudData[exName]) cloudData[exName] = [];
+      cloudData[exName].push(newRecord);
+
+      saveToCloud();
+      renderExercises();
+    }
+
+    function initCharts() {
+      const day = workoutPlan[currentDayIndex];
+      day.exercises.forEach((exName, exIdx) => {
+        const history = cloudData[exName] || [];
+        if (history.length === 0) return;
+        const ctx = document.getElementById(`chart_${exIdx}`);
+        if (!ctx) return;
+        if (charts[exIdx]) charts[exIdx].destroy();
+
+        charts[exIdx] = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: history.map(h => h.date),
+            datasets: [{
+              label: 'Gewicht (kg)',
+              data: history.map(h => h.weight),
+              borderColor: '#6366f1',
+              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+              fill: true,
+              tension: 0.3,
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 10 } } },
+              y: { grid: { color: '#2a3447' }, ticks: { color: '#9ca3af', font: { size: 10 } } }
+            }
+          }
+        });
+      });
+    }
+
+    renderTabs();
+    loadFromCloud();
+/*]]>*/
+</script>
