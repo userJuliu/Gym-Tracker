@@ -90,10 +90,13 @@
     async function loadFromCloud() {
       document.getElementById('syncText').innerText = 'Lade Cloud-Daten...';
       try {
-        // Einzigartiger Zeitstempel (?t=...) zwingt den Browser, die Daten frisch zu holen statt aus dem Cache
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest?t=${new Date().getTime()}`, {
-          headers: { 'X-Master-Key': JSONBIN_API_KEY },
-          cache: 'no-store'
+        // Nutzung der offiziellen Lese-Methode über JSONbin API
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+          method: 'GET',
+          headers: { 
+            'X-Master-Key': JSONBIN_API_KEY,
+            'Content-Type': 'application/json'
+          }
         });
         if (!res.ok) throw new Error("Netzwerkfehler");
         const data = await res.json();
@@ -104,7 +107,8 @@
         renderExercises();
       } catch (e) {
         console.error(e);
-        document.getElementById('syncText').innerText = 'Fehler beim Laden (Klicken zum Wiederholen)';
+        // Fallback falls Netzwerk blockiert: Lokale Daten nutzen, damit die App nutzbar bleibt
+        document.getElementById('syncText').innerText = 'Offline-Modus (Klicken zum Verbinden)';
         cloudData = JSON.parse(localStorage.getItem('gym_tracker_logs')) || {};
         renderExercises();
       }
@@ -320,7 +324,6 @@
       });
     }
 
-    // Automatischer Start beim Laden der Seite
     renderTabs();
     loadFromCloud();
   </script>
