@@ -1,30 +1,81 @@
-<div class="container">
-    <header>
-        <h1>
-            Gym Cloud Tracker
-        </h1>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gym Cloud Tracker</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
 
-        <p>
-            Geräteübergreifender Sync
-        </p>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background-color: #ffffff; color: #1e293b; padding: 1rem; min-height: 100vh; }
+    .container { max-width: 900px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #e2e8f0; }
+    header h1 { font-size: 1.8rem; font-weight: 800; color: #4f46e5; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    header p { color: #64748b; font-size: 0.9rem; margin-top: 0.3rem; }
+
+    .tabs-nav { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1.5rem; scrollbar-width: thin; }
+    .tab-btn { background: #f8fafc; border: 1px solid #cbd5e1; color: #475569; padding: 0.6rem 1rem; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+    .tab-btn.active { background: #4f46e5; color: #fff; border-color: #4f46e5; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); }
+
+    .exercise-card { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 14px; padding: 1.2rem; margin-bottom: 1.2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    .exercise-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.6rem; border-bottom: 1px solid #e2e8f0; }
+    .exercise-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
+    .exercise-stats-badge { display: flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; padding: 0.3rem 0.6rem; border-radius: 6px; background: #f1f5f9; font-weight: 600; }
+
+    .trend-up { color: #059669; }
+    .trend-down { color: #dc2626; }
+    .trend-same { color: #d97706; }
+
+    .set-input-row { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 0.8rem; margin-bottom: 1rem; align-items: center; }
+    .input-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    .input-group label { font-size: 0.75rem; color: #475569; font-weight: 700; text-transform: uppercase; }
+    
+    input, select { background: #ffffff !important; border: 1px solid #94a3b8 !important; color: #0f172a !important; padding: 0.6rem; border-radius: 8px; font-size: 0.95rem; width: 100%; outline: none; }
+    input:focus, select:focus { border-color: #4f46e5 !important; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
+
+    .btn-save { background: #4f46e5; color: #fff; border: none; padding: 0.7rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; width: 100%; justify-content: center; transition: background 0.2s; }
+    .btn-save:hover { background: #4338ca; }
+
+    .history-list { margin-top: 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.6rem; }
+    .history-item { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.4rem 0.5rem; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+    .history-item:last-child { border-bottom: none; }
+    .chart-box { margin-top: 1rem; height: 180px; position: relative; }
+
+    .sync-status { margin-top: 1.5rem; text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #d97706; }
+    .dot.connected { background: #059669; }
+
+    @media (max-width: 600px) {
+      .set-input-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1><i data-lucide="cloud"></i> Gym Cloud Tracker</h1>
+      <p>Geräteübergreifender Sync</p>
     </header>
 
-    <div class="tabs-nav" id="tabsNav">
+    <div class="tabs-nav" id="tabsNav"></div>
+    <div id="exerciseContent"></div>
+    
+    <div style="text-align: center;">
+      <div class="sync-status">
+        <div id="syncDot" class="dot"></div>
+        <span id="syncText">Verbinde Cloud...</span>
+      </div>
     </div>
+  </div>
 
-    <div id="exerciseContent">
-    </div>
-</div>
-
-<div class="sync-status">
-    <div id="syncDot" class="dot">
-    </div>
-    <span id="syncText">Lade Cloud-Daten...</span>
-</div>
-<script>
-/* <![CDATA[ */
-    // ⚠️ DEINE ANGABEN HIER EINTRAGEN ⚠️
-    const JSONBIN_API_KEY = "$2a$10$/l2s8Z7UYYcY3FEk6rWj.efbZML4es8PBx0u.nxDFWBIY7x4uB5jO"; 
+  <script>
+    // DEINE DATEN SIND HIERBEREITS RICHTIG EINGETRAGEN
+    const JSONBIN_API_KEY = "$2a$10$/12s8Z7UYyCY3FEk6rWj.efvZML4es8PBx0u.nxDFWBIY7x4uB5j0"; 
     const JSONBIN_BIN_ID = "6adde7bbac6210605a509178";
 
     let cloudData = {};
@@ -32,25 +83,16 @@
     let charts = {};
 
     async function loadFromCloud() {
-      if (!JSONBIN_API_KEY || JSONBIN_API_KEY.includes("HIER") || !JSONBIN_BIN_ID || JSONBIN_BIN_ID.includes("HIER")) {
-        cloudData = JSON.parse(localStorage.getItem('gym_tracker_logs')) || {};
-        document.getElementById('syncText').innerText = 'Lokal (Angaben fehlen)';
-        renderExercises();
-        return;
-      }
-
       try {
         const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
           headers: { 'X-Master-Key': JSONBIN_API_KEY }
         });
-        
         if (!res.ok) throw new Error("Netzwerkfehler");
-
         const data = await res.json();
         cloudData = data.record.exercises || {};
         
         document.getElementById('syncDot').classList.add('connected');
-        document.getElementById('syncText').innerText = 'Cloud Verbunden';
+        document.getElementById('syncText').innerText = 'Cloud Verbunden & Synchronisiert';
         renderExercises();
       } catch (e) {
         console.error(e);
@@ -62,9 +104,6 @@
 
     async function saveToCloud() {
       localStorage.setItem('gym_tracker_logs', JSON.stringify(cloudData));
-
-      if (!JSONBIN_API_KEY || JSONBIN_API_KEY.includes("HIER") || !JSONBIN_BIN_ID || JSONBIN_BIN_ID.includes("HIER")) return;
-
       document.getElementById('syncDot').classList.remove('connected');
       document.getElementById('syncText').innerText = 'Speichere...';
 
@@ -77,7 +116,6 @@
           },
           body: JSON.stringify({ exercises: cloudData })
         });
-
         if (!res.ok) throw new Error("Speicherfehler");
 
         document.getElementById('syncDot').classList.add('connected');
@@ -119,7 +157,7 @@
     function renderTabs() {
       const nav = document.getElementById('tabsNav');
       nav.innerHTML = workoutPlan.map((day, idx) => `
-        <button class="tab-btn ${idx === currentDayIndex ? 'active' : ''}" onclick="switchTab(${idx})">${day.title}<\/button>
+        <button class="tab-btn ${idx === currentDayIndex ? 'active' : ''}" onclick="switchTab(${idx})">${day.title}</button>
       `).join('');
     }
 
@@ -138,61 +176,61 @@
         const lastEntry = history[history.length - 1];
         const prevEntry = history[history.length - 2];
 
-        let trendHtml = '<span class="trend-same">➖ Erstes Training<\/span>';
+        let trendHtml = '<span class="trend-same">➖ Erstes Training</span>';
         if (lastEntry && prevEntry) {
           if (lastEntry.weight > prevEntry.weight) {
-            trendHtml = `<span class="trend-up">📈 +${(lastEntry.weight - prevEntry.weight).toFixed(1)}kg<\/span>`;
+            trendHtml = `<span class="trend-up">📈 +${(lastEntry.weight - prevEntry.weight).toFixed(1)}kg</span>`;
           } else if (lastEntry.weight < prevEntry.weight) {
-            trendHtml = `<span class="trend-down">📉 -${(prevEntry.weight - lastEntry.weight).toFixed(1)}kg<\/span>`;
+            trendHtml = `<span class="trend-down">📉 -${(prevEntry.weight - lastEntry.weight).toFixed(1)}kg</span>`;
           } else {
-            trendHtml = `<span class="trend-same">🟡 Gleich<\/span>`;
+            trendHtml = `<span class="trend-same">🟡 Gleich</span>`;
           }
         }
 
         return `
           <div class="exercise-card">
             <div class="exercise-header">
-              <span class="exercise-title">${exName}<\/span>
-              <div class="exercise-stats-badge">${trendHtml}<\/div>
-            <\/div>
+              <span class="exercise-title">${exName}</span>
+              <div class="exercise-stats-badge">${trendHtml}</div>
+            </div>
 
             <div class="set-input-row">
               <div class="input-group">
-                <label>Gewicht (kg)<\/label>
+                <label>Gewicht (kg)</label>
                 <input type="number" step="0.5" id="weight_${exIdx}" placeholder="z.B. 60" value="${lastEntry ? lastEntry.weight : ''}">
-              <\/div>
+              </div>
               <div class="input-group">
-                <label>Wdh.<\/label>
+                <label>Wdh.</label>
                 <input type="number" id="reps_${exIdx}" placeholder="z.B. 10" value="${lastEntry ? lastEntry.reps : ''}">
-              <\/div>
+              </div>
               <div class="input-group">
-                <label>Anstrengung<\/label>
+                <label>Anstrengung</label>
                 <select id="rpe_${exIdx}">
-                  <option value="Leicht">🟢 Leicht<\/option>
-                  <option value="Optimal" selected>🟡 Optimal (RPE 8-9)<\/option>
-                  <option value="Maximal">🔴 Versagen (RPE 10)<\/option>
-                <\/select>
-              <\/div>
-            <\/div>
+                  <option value="Leicht">🟢 Leicht</option>
+                  <option value="Optimal" selected>🟡 Optimal (RPE 8-9)</option>
+                  <option value="Maximal">🔴 Versagen (RPE 10)</option>
+                </select>
+              </div>
+            </div>
 
             <button class="btn-save" onclick="saveSet('${exName}', ${exIdx})">
-              <i data-lucide="cloud-upload"><\/i> Satz Speichern
-            <\/button>
+              <i data-lucide="cloud-upload"></i> Satz Speichern
+            </button>
 
             ${history.length > 0 ? `
               <div class="history-list">
-                <div style="font-size:0.75rem; color:var(--text-muted); font-weight:700; margin-bottom:0.3rem;">VERLAUF:<\/div>
+                <div style="font-size:0.75rem; color:#475569; font-weight:700; margin-bottom:0.4rem;">VERLAUF:</div>
                 ${history.slice(-3).reverse().map(h => `
                   <div class="history-item">
-                    <span>${h.date}<\/span>
-                    <span><strong>${h.weight} kg<\/strong> × ${h.reps} Wdh.<\/span>
-                    <span style="color:var(--text-muted);">${h.rpe}<\/span>
-                  <\/div>
+                    <span>${h.date}</span>
+                    <span><strong>${h.weight} kg</strong> × ${h.reps} Wdh.</span>
+                    <span style="color:#64748b;">${h.rpe}</span>
+                  </div>
                 `).join('')}
-              <\/div>
-              <div class="chart-box"><canvas id="chart_${exIdx}"><\/canvas><\/div>
+              </div>
+              <div class="chart-box"><canvas id="chart_${exIdx}"></canvas></div>
             ` : ''}
-          <\/div>
+          </div>
         `;
       }).join('');
 
@@ -240,11 +278,11 @@
             datasets: [{
               label: 'Gewicht (kg)',
               data: history.map(h => h.weight),
-              borderColor: '#6366f1',
-              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+              borderColor: '#4f46e5',
+              backgroundColor: 'rgba(79, 70, 229, 0.1)',
               fill: true,
               tension: 0.3,
-              borderWidth: 2
+              borderWidth: 3
             }]
           },
           options: {
@@ -252,8 +290,8 @@
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-              x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 10 } } },
-              y: { grid: { color: '#2a3447' }, ticks: { color: '#9ca3af', font: { size: 10 } } }
+              x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+              y: { grid: { color: '#e2e8f0' }, ticks: { color: '#64748b', font: { size: 11 } } }
             }
           }
         });
@@ -262,5 +300,6 @@
 
     renderTabs();
     loadFromCloud();
-/*]]>*/
-</script>
+  </script>
+</body>
+</html>
